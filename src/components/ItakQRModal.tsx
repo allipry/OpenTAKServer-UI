@@ -12,9 +12,7 @@ import {
   Center,
   Loader,
   Tabs,
-  NumberInput,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { IconQrcode, IconCheck, IconX, IconInfoCircle } from '@tabler/icons-react';
 import { QRCode } from 'react-qrcode-logo';
@@ -29,7 +27,7 @@ interface ItakCredentials {
 
 interface AtakCredentials {
   expiry_date: string;
-  max_uses: number;
+  max_uses: string;
 }
 
 interface ItakQRResponse {
@@ -65,7 +63,7 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
   });
   const [atakCredentials, setAtakCredentials] = useState<AtakCredentials>({
     expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    max_uses: 1
+    max_uses: '1'
   });
   const [itakQrData, setItakQrData] = useState<ItakQRResponse | null>(null);
   const [atakQrData, setAtakQrData] = useState<AtakQRResponse | null>(null);
@@ -110,7 +108,7 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
     try {
       const response = await axios.post('/api/atak_qr_string', {
         expiry_date,
-        max_uses
+        max_uses: parseInt(max_uses)
       });
       
       if (response.status === 200) {
@@ -122,7 +120,7 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
       // Fallback to GET request for backward compatibility
       try {
         const response = await axios.get('/api/atak_qr_string', {
-          params: { expiry_date, max_uses }
+          params: { expiry_date, max_uses: parseInt(max_uses) }
         });
         
         if (response.status === 200) {
@@ -171,10 +169,10 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
   };
 
   const handleAtakGenerate = async () => {
-    if (!atakCredentials.expiry_date || !atakCredentials.max_uses) {
+    if (!atakCredentials.expiry_date || !atakCredentials.max_uses || parseInt(atakCredentials.max_uses) < 1) {
       notifications.show({
         title: 'Validation Error',
-        message: 'Please enter both expiry date and maximum uses',
+        message: 'Please enter both expiry date and maximum uses (minimum 1)',
         color: 'red',
         icon: <IconX size={16} />
       });
@@ -210,7 +208,7 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
     setItakCredentials({ username: 'admin', token: 'password' });
     setAtakCredentials({
       expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      max_uses: 1
+      max_uses: '1'
     });
     setActiveTab('itak');
     onClose();
@@ -349,25 +347,27 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
                     Configure certificate settings for ATAK connection. This will generate a certificate enrollment QR code.
                   </Text>
                   
-                  <DateInput
+                  <TextInput
                     label="Certificate Expiry Date"
-                    placeholder="Select expiry date"
-                    value={new Date(atakCredentials.expiry_date)}
-                    onChange={(date) => setAtakCredentials(prev => ({
+                    placeholder="YYYY-MM-DD"
+                    type="date"
+                    value={atakCredentials.expiry_date}
+                    onChange={(e) => setAtakCredentials(prev => ({
                       ...prev,
-                      expiry_date: date ? date.toISOString().split('T')[0] : ''
+                      expiry_date: e.target.value
                     }))}
                     required
                     disabled={loading}
                   />
                   
-                  <NumberInput
+                  <TextInput
                     label="Maximum Uses"
-                    placeholder="Enter maximum uses"
+                    placeholder="Enter maximum uses (1-100)"
+                    type="number"
                     value={atakCredentials.max_uses}
-                    onChange={(value) => setAtakCredentials(prev => ({
+                    onChange={(e) => setAtakCredentials(prev => ({
                       ...prev,
-                      max_uses: Number(value) || 1
+                      max_uses: e.target.value
                     }))}
                     min={1}
                     max={100}
@@ -400,7 +400,7 @@ export function ItakQRModal({ opened, onClose }: QRModalProps) {
                         leftSection={loading ? <Loader size={16} /> : <IconQrcode size={16} />}
                         onClick={handleAtakGenerate}
                         loading={loading}
-                        disabled={!atakCredentials.expiry_date || !atakCredentials.max_uses}
+                        disabled={!atakCredentials.expiry_date || !atakCredentials.max_uses || parseInt(atakCredentials.max_uses) < 1}
                       >
                         Generate ATAK QR Code
                       </Button>
