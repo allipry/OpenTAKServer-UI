@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenTAK QR Code Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .qr-container {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .qr-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 6px;
+            text-align: left;
+        }
+        .qr-info h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .qr-info p {
+            margin: 5px 0;
+            font-family: monospace;
+            background: white;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #7f8c8d;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .error {
+            color: #e74c3c;
+            background: #fdf2f2;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #27ae60;
+            background: #f0f9f4;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenTAK QR Code Generator</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('itak')">iTAK QR Code</button>
+            <button class="tab" onclick="switchTab('atak')">ATAK QR Code</button>
+        </div>
+
+        <!-- iTAK Tab -->
+        <div id="itak-tab" class="tab-content active">
+            <h2>iTAK Connection QR Code</h2>
+            <p>Generate a QR code for iTAK clients with custom credentials.</p>
+            
+            <div class="form-group">
+                <label for="itak-username">Username:</label>
+                <input type="text" id="itak-username" value="admin" placeholder="Enter username">
+            </div>
+            
+            <div class="form-group">
+                <label for="itak-token">Token/Password:</label>
+                <input type="password" id="itak-token" value="password" placeholder="Enter token or password">
+            </div>
+            
+            <button onclick="generateItakQR()">Generate iTAK QR Code</button>
+            <button onclick="testItakEndpoint()">Test Endpoint</button>
+        </div>
+
+        <!-- ATAK Tab -->
+        <div id="atak-tab" class="tab-content">
+            <h2>ATAK Connection QR Code</h2>
+            <p>Generate a QR code for ATAK clients with certificate configuration.</p>
+            
+            <div class="form-group">
+                <label for="atak-expiry">Certificate Expiry Date:</label>
+                <input type="date" id="atak-expiry" value="">
+            </div>
+            
+            <div class="form-group">
+                <label for="atak-max-uses">Maximum Uses:</label>
+                <input type="number" id="atak-max-uses" value="1" min="1" max="100">
+            </div>
+            
+            <button onclick="generateAtakQR()">Generate ATAK QR Code</button>
+            <button onclick="testAtakEndpoint()">Test Endpoint</button>
+        </div>
+
+        <div id="qr-result" class="qr-container" style="display: none;">
+            <canvas id="qr-canvas"></canvas>
+            <div id="qr-info" class="qr-info"></div>
+        </div>
+
+        <div id="message"></div>
+    </div>
+
+    <script>
+        // Set default expiry date to 1 year from now
+        document.getElementById('atak-expiry').value = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+            
+            // Hide QR result when switching tabs
+            document.getElementById('qr-result').style.display = 'none';
+            document.getElementById('message').innerHTML = '';
+        }
+
+        function showMessage(message, type = 'error') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function showQRCode(qrString, info) {
+            const canvas = document.getElementById('qr-canvas');
+            const qrInfo = document.getElementById('qr-info');
+            const qrResult = document.getElementById('qr-result');
+            
+            // Generate QR code
+            QRCode.toCanvas(canvas, qrString, {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    showMessage('Error generating QR code: ' + error.message);
+                } else {
+                    qrInfo.innerHTML = info;
+                    qrResult.style.display = 'block';
+                    showMessage('QR code generated successfully!', 'success');
+                }
+            });
+        }
+
+        async function generateItakQR() {
+            const username = document.getElementById('itak-username').value;
+            const token = document.getElementById('itak-token').value;
+            
+            if (!username || !token) {
+                showMessage('Please enter both username and token.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/itak_qr_string', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        token: token
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                const info = `
+                    <h3>iTAK Connection Details</h3>
+                    <p><strong>QR String:</strong> ${data.qr_string}</p>
+                    <p><strong>Server:</strong> ${data.connection_details.server}</p>
+                    <p><strong>Username:</strong> ${data.connection_details.username}</p>
+                    <p><strong>Token:</strong> ${data.connection_details.token}</p>
+                    <p><strong>Scheme:</strong> ${data.connection_details.scheme}</p>
+                    <p><strong>Generated:</strong> ${data.timestamp}</p>
+                `;
+                
+                showQRCode(data.qr_string, info);
+                
+            } catch (error) {
+                showMessage('Error generating iTAK QR code: ' + error.message);
+            }
+        }
+
+        async function generateAtakQR() {
+            const expiry = document.getElementById('atak-expiry').value;
+            const maxUses = document.getElementById('atak-max-uses').value;
+            
+            if (!expiry || !maxUses) {
+                showMessage('Please enter both expiry date and maximum uses.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/atak_qr_string', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        expiry_date: expiry,
+                        max_uses: parseInt(maxUses)
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                const info = `
+                    <h3>ATAK Connection Details</h3>
+                    <p><strong>QR String:</strong> ${data.qr_string}</p>
+                    <p><strong>Server URL:</strong> ${data.server_url}</p>
+                    <p><strong>Expiry Date:</strong> ${data.expiry_date}</p>
+                    <p><strong>Max Uses:</strong> ${data.max_uses}</p>
+                    <p><strong>Generated:</strong> ${data.timestamp}</p>
+                `;
+                
+                showQRCode(data.qr_string, info);
+                
+            } catch (error) {
+                showMessage('Error generating ATAK QR code: ' + error.message);
+            }
+        }
+
+        async function testItakEndpoint() {
+            try {
+                const response = await fetch('/api/itak_qr_string');
+                const data = await response.json();
+                showMessage(`iTAK endpoint test successful! Default QR: ${data.qr_string}`, 'success');
+            } catch (error) {
+                showMessage('iTAK endpoint test failed: ' + error.message);
+            }
+        }
+
+        async function testAtakEndpoint() {
+            try {
+                const response = await fetch('/api/atak_qr_string');
+                const data = await response.json();
+                showMessage(`ATAK endpoint test successful! Default QR: ${data.qr_string}`, 'success');
+            } catch (error) {
+                showMessage('ATAK endpoint test failed: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
