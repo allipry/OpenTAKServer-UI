@@ -50,6 +50,7 @@ import axios from '../../axios_config';
 import { apiRoutes } from '../../apiRoutes';
 import MeshtasticLogo from './MeshtasticLogo';
 import {DateTimePicker} from "@mantine/dates";
+import { ItakQRModal } from '../ItakQRModal';
 
 const navbarLinks = [
     { link: '/dashboard', label: 'Dashboard', icon: IconDashboard },
@@ -89,7 +90,6 @@ export default function Navbar() {
     const administrator = localStorage.getItem('administrator') === 'true';
     const location = useLocation();
     const [showItakQr, setShowItakQr] = useState(false);
-    const [itakQrString, setItakQrString] = useState('');
     const [plugins, setPlugins] = useState([]);
     const [pluginNavLinks, setPluginNavLinks] = useState<ReactElement[]>([]);
 
@@ -173,21 +173,7 @@ export default function Navbar() {
         });
     };
 
-    const itak_qr_string = () => {
-        axios.get(apiRoutes.itakQrString).then(r => {
-            if (r.status === 200) {
-                setItakQrString(r.data);
-                setShowItakQr(true);
-            }
-        }).catch(err => {
-            console.log(err);
-            notifications.show({
-                message: 'Failed to get QR code string',
-                icon: <IconX />,
-                color: 'red',
-            });
-        });
-    };
+    // iTAK QR functionality now handled by ItakQRModal component
 
     const get_plugins = () => {
         axios.get(apiRoutes.plugins).then(r => {
@@ -269,7 +255,7 @@ export default function Navbar() {
             <div className={classes.footer}>
                 <NavLink className={classes.link} key="downloadTruststore" onClick={() => window.open(apiRoutes.truststore, "_blank")} leftSection={<IconCertificate className={classes.linkIcon} stroke={1.5} />} label="Download Truststore" />
                 <NavLink className={classes.link} key="atakQrCode" onClick={() => getAtakQr()} leftSection={<IconQrcode className={classes.linkIcon} stroke={1.5} />} label="ATAK QR Code" />
-                <NavLink className={classes.link} key="itakQrCode" onClick={() => itak_qr_string()} leftSection={<IconQrcode className={classes.linkIcon} stroke={1.5} />} label="iTAK QR Code" />
+                <NavLink className={classes.link} key="itakQrCode" onClick={() => setShowItakQr(true)} leftSection={<IconQrcode className={classes.linkIcon} stroke={1.5} />} label="iTAK QR Code" />
                 <NavLink className={classes.link} key="2faSettings" component={Link} to="/tfa_setup" leftSection={<Icon2fa className={classes.linkIcon} stroke={1.5} />} label="Setup 2FA" />
                 <NavLink className={classes.link} key="darkModeSwitch" leftSection={<IconMoonStars className={classes.linkIcon} stroke={1.5} />} rightSection={<DarkModeSwitch />} label="Dark Mode" />
                 <NavLink className={classes.link} key="support" leftSection={<IconHelp className={classes.linkIcon} stroke={1.5} />} label="Support" >
@@ -279,13 +265,10 @@ export default function Navbar() {
                 </NavLink>
                 <NavLink className={classes.link} key="logout" leftSection={<IconLogout className={classes.linkIcon} stroke={1.5} />} label="Log Out" onClick={() => logout()} />
             </div>
-            <Modal opened={showItakQr} onClose={() => setShowItakQr(false)} p="md" title="iTAK Connection Details">
-                <Center>
-                    <Paper p="md" shadow="xl" withBorder bg="white">
-                        <QRCode size={350} value={itakQrString} quietZone={10} logoImage={Logo} qrStyle="dots" ecLevel="H" eyeRadius={50} logoWidth={100} logoHeight={100} />
-                    </Paper>
-                </Center>
-            </Modal>
+            <ItakQRModal 
+                opened={showItakQr} 
+                onClose={() => setShowItakQr(false)} 
+            />
             <Modal opened={showAtakQr} onClose={() => setShowAtakQr(false)} title="ATAK QR Code">
                 <DateTimePicker onChange={(date) => {
                     if (date !== "Invalid Date" && date !== null) {
